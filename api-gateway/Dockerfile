@@ -1,24 +1,23 @@
-# Use OpenJDK as base image
+# api-gateway/Dockerfile
 FROM openjdk:17
 
-# Set working directory inside container
 WORKDIR /app
 
-# Copy the built JAR file into the container
 COPY target/api-gateway-0.0.1-SNAPSHOT.jar /app/api-gateway-0.0.1-SNAPSHOT.jar
 
-# Give the container access to the JAR file
 RUN chmod 777 /app/api-gateway-0.0.1-SNAPSHOT.jar
 
-# Set environment variables
-ENV SPRING_PROFILES_ACTIVE=dev \
-    EUREKA_CLIENT_ENABLED=false \
-    SPRING_CLOUD_CONFIG_ENABLED=false
+# Default environment variables - will be overridden by docker-compose
+ENV SPRING_PROFILES_ACTIVE=dev
+
+# Set JVM options for memory and garbage collection
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
+
 
 # Expose the API Gateway port
 EXPOSE 8080
 
-# Healthcheck (optional)
+# Healthcheck
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
     CMD curl -f http://localhost:8080/actuator/health || exit 1
 

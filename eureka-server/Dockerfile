@@ -1,26 +1,24 @@
-# Use an OpenJDK base image
+# eureka-server/Dockerfile
 FROM openjdk:17
-  
-  # Set the working directory inside the container
+
 WORKDIR /app
-  
-  # Copy the built JAR file into the container
+
 COPY target/eureka-server-0.0.1-SNAPSHOT.jar /app/eureka-server-0.0.1-SNAPSHOT.jar
 
-  # Give the container access to the JAR file
 RUN chmod 777 /app/eureka-server-0.0.1-SNAPSHOT.jar
-  
-  # Set environment variables
-ENV SPRING_PROFILES_ACTIVE=dev \
-EUREKA_CLIENT_REGISTER_WITH_EUREKA=false \
-EUREKA_CLIENT_FETCH_REGISTRY=false
-  
-  # Expose the Eureka server port
+
+# Default environment variables - will be overridden by docker-compose
+ENV SPRING_PROFILES_ACTIVE=dev
+
+# Set JVM options for memory and garbage collection
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
+
+# Expose the Eureka server port
 EXPOSE 8761
-  
-  # Healthcheck (optional)
+
+# Healthcheck
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
-CMD curl -f http://localhost:8761/actuator/health || exit 1
-  
-  # Run the application
+    CMD curl -f http://localhost:8761/actuator/health || exit 1
+
+# Run the application
 CMD ["java", "-jar", "/app/eureka-server-0.0.1-SNAPSHOT.jar"]
