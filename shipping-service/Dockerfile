@@ -18,7 +18,7 @@ EXPOSE 8085
 
 # Healthcheck
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
-    CMD curl -f http://localhost:8085/actuator/health || exit 1
+    CMD curl -f http://shipping-service:8085/actuator/health || exit 1
 
 # Run the application
 CMD ["java", "-jar", "/app/shipping-service-0.0.1-SNAPSHOT.jar"]

@@ -19,7 +19,7 @@ EXPOSE 8888
 
 # Healthcheck
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
-    CMD curl -f http://localhost:8888/actuator/health || exit 1
+    CMD curl -f http://config-server:8888/actuator/health || exit 1
 
 # Run the application
 CMD ["java", "-jar", "/app/config-server-0.0.1-SNAPSHOT.jar"]

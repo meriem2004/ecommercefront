@@ -18,7 +18,7 @@ EXPOSE 8761
 
 # Healthcheck
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
-    CMD curl -f http://localhost:8761/actuator/health || exit 1
+    CMD curl -f http://eureka-server:8761/actuator/health || exit 1
 
 # Run the application
 CMD ["java", "-jar", "/app/eureka-server-0.0.1-SNAPSHOT.jar"]
