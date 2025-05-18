@@ -1,6 +1,7 @@
 package com.example.service;
 
-import com.example.client.ProductServiceClient;
+// Ensure the correct package path for ProductServiceClient
+import com.example.client.ProductServiceClient; // Verify this path or update it to the correct one
 import com.example.dto.*;
 import com.example.model.Cart;
 import com.example.model.CartItem;

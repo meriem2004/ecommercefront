@@ -40,12 +40,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/**") // Optional: restricts this config to certain paths
+                .securityMatcher("/**")
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .csrf(csrf -> csrf.disable())
+                // REMOVE CORS configuration here - let API Gateway handle it
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exceptions ->
                         exceptions.authenticationEntryPoint(jwtAuthenticationEntryPoint)
@@ -56,6 +57,4 @@ public class SecurityConfig {
 
         return http.build();
     }
-
 }
-

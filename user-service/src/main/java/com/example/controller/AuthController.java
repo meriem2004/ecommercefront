@@ -9,6 +9,7 @@ import com.example.security.JwtUserDetailsService;
 import com.example.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -16,15 +17,14 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/auth")
+// REMOVE @CrossOrigin annotation - API Gateway handles CORS
 public class AuthController {
 
     @Autowired
@@ -38,6 +38,9 @@ public class AuthController {
 
     @Autowired
     private UserService userService;
+    
+    @Value("${jwt.expiration}")
+    private long jwtExpiration;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest loginRequest) {
@@ -49,8 +52,12 @@ public class AuthController {
             final UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequest.getEmail());
             final String token = jwtTokenUtil.generateToken(userDetails);
             final String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
+            
+            // Get user details to include in response
+            UserDTO userDTO = userService.getUserByEmail(loginRequest.getEmail())
+                    .orElseThrow(() -> new Exception("User not found"));
 
-            return ResponseEntity.ok(new JwtResponse(token, refreshToken));
+            return ResponseEntity.ok(new JwtResponse(token, refreshToken, userDTO));
         } catch (DisabledException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("message", "Account is disabled"));
@@ -68,8 +75,16 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody UserDTO userDTO) {
         try {
+            // First, create the user
             UserDTO registeredUser = userService.createUser(userDTO);
-            return ResponseEntity.ok(registeredUser);
+            
+            // Then, generate tokens just like in the login endpoint
+            final UserDetails userDetails = userDetailsService.loadUserByUsername(registeredUser.getEmail());
+            final String token = jwtTokenUtil.generateToken(userDetails);
+            final String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
+            
+            // Return response with tokens and user info
+            return ResponseEntity.ok(new JwtResponse(token, refreshToken, registeredUser));
         } catch (Exception e) {
             // Log the exception
             e.printStackTrace();
@@ -86,11 +101,15 @@ public class AuthController {
 
             if (username != null) {
                 final UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                
+                // Get user details to include in response
+                UserDTO userDTO = userService.getUserByEmail(username)
+                        .orElseThrow(() -> new Exception("User not found"));
 
                 // Validate refresh token
                 if (jwtTokenUtil.validateToken(request.getRefreshToken(), userDetails)) {
                     final String newToken = jwtTokenUtil.generateToken(userDetails);
-                    return ResponseEntity.ok(new JwtResponse(newToken, request.getRefreshToken()));
+                    return ResponseEntity.ok(new JwtResponse(newToken, request.getRefreshToken(), userDTO));
                 }
             }
 
@@ -102,5 +121,19 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Token refresh failed: " + e.getMessage()));
         }
+    }
+
+    @GetMapping("/register")
+    public ResponseEntity<?> getRegistrationInfo() {
+        return ResponseEntity.ok(Map.of(
+            "message", "Registration endpoint is available", 
+            "method", "POST",
+            "requiredFields", List.of("firstName", "lastName", "email", "password")
+        ));
+    }
+
+    @GetMapping("/test")
+    public ResponseEntity<?> testEndpoint() {
+        return ResponseEntity.ok(Map.of("message", "Auth API is working"));
     }
 }
