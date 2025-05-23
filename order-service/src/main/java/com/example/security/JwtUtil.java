@@ -1,4 +1,4 @@
-package com.example.config;
+package com.example.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -8,15 +8,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
-import java.util.Base64;
+import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
 @Component
-public class JwtTokenUtil {
+public class JwtUtil {
 
     @Value("${jwt.secret}")
     private String secret;
@@ -24,18 +23,9 @@ public class JwtTokenUtil {
     @Value("${jwt.expiration}")
     private Long expiration;
 
-    @Value("${jwt.refreshExpiration}")
-    private Long refreshExpiration;
-
-    private SecretKey getSigningKey() {
-        try {
-            // Check if the secret is Base64 encoded
-            byte[] keyBytes = Base64.getDecoder().decode(secret);
-            return Keys.hmacShaKeyFor(keyBytes);
-        } catch (Exception e) {
-            // If decoding fails, generate a secure key using the secret as a seed
-            return Keys.secretKeyFor(SignatureAlgorithm.HS256);
-        }
+    private Key getSigningKey() {
+        byte[] keyBytes = secret.getBytes();
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String extractUsername(String token) {
@@ -65,15 +55,10 @@ public class JwtTokenUtil {
 
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
-        return createToken(claims, userDetails.getUsername(), expiration);
+        return createToken(claims, userDetails.getUsername());
     }
 
-    public String generateRefreshToken(UserDetails userDetails) {
-        Map<String, Object> claims = new HashMap<>();
-        return createToken(claims, userDetails.getUsername(), refreshExpiration);
-    }
-
-    private String createToken(Map<String, Object> claims, String subject, Long expiration) {
+    private String createToken(Map<String, Object> claims, String subject) {
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(subject)
@@ -87,4 +72,4 @@ public class JwtTokenUtil {
         final String username = extractUsername(token);
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
     }
-}
+} 

@@ -32,7 +32,7 @@ public class OrderServiceImpl implements OrderService {
         order.setOrderNumber(generateOrderNumber());
         order.setUserId(orderRequest.getUserId());
         order.setOrderDate(LocalDateTime.now());
-        order.setStatus("PENDING");
+        order.setStatus(Order.OrderStatus.PENDING);
         order.setShippingAddress(orderRequest.getShippingAddress());
 
         List<OrderItem> orderItems = new ArrayList<>();
@@ -81,7 +81,7 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse updateOrderStatus(Long id, String status) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Order not found with id: " + id));
-        order.setStatus(status);
+        order.setStatus(Order.OrderStatus.valueOf(status.toUpperCase()));
         Order updatedOrder = orderRepository.save(order);
         return mapToOrderResponse(updatedOrder);
     }
@@ -106,7 +106,7 @@ public class OrderServiceImpl implements OrderService {
                 order.getOrderNumber(),
                 order.getUserId(),
                 order.getOrderDate(),
-                order.getStatus(),
+                order.getStatus().name(),
                 order.getTotalAmount(),
                 order.getShippingAddress(),
                 itemResponses

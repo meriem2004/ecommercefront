@@ -1,7 +1,6 @@
 package com.example.config;
 
-import com.example.security.JwtAuthenticationEntryPoint;
-import com.example.security.JwtRequestFilter;
+import com.example.security.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,14 +21,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     @Autowired
-    private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-
-    @Autowired
-    private JwtRequestFilter jwtRequestFilter;
+    private JwtTokenUtil jwtTokenUtil;
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+    public JwtAuthenticationFilter jwtAuthenticationFilter() {
+        return new JwtAuthenticationFilter();
     }
 
     @Bean
@@ -38,24 +34,36 @@ public class SecurityConfig {
     }
 
     @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/**") // Optional: restricts this config to certain paths
-                .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // Public endpoints
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
+                        
+                        // User management endpoints
+                        .requestMatchers("/api/users/register").permitAll()
+                        .requestMatchers("/api/users/profile").authenticated()
+                        .requestMatchers("/api/users/**").hasRole("ADMIN")
+                        
+                        // Role and permission management
+                        .requestMatchers("/api/roles/**").hasRole("ADMIN")
+                        .requestMatchers("/api/permissions/**").hasRole("ADMIN")
+                        
+                        // Default security
                         .anyRequest().authenticated()
                 )
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(exceptions ->
-                        exceptions.authenticationEntryPoint(jwtAuthenticationEntryPoint)
-                )
-                .headers(headers -> headers.disable());
-
-        http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
-
 }
 

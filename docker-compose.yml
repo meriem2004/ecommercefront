@@ -6,8 +6,8 @@ services:
     image: postgres:14-alpine
     container_name: postgres
     environment:
-      POSTGRES_PASSWORD:
-      POSTGRES_USER:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
       POSTGRES_DB: postgres
       POSTGRES_MULTIPLE_DATABASES: user_db, product_db, cart_db, order_db, payment_db, shipping_db, notification_db
     ports:
@@ -47,6 +47,7 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=native
       - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS=file:/config-repo
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
     networks:
       - ecommerce-network
     depends_on:
@@ -84,10 +85,10 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - JAVA_OPTS=-Deureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/ -Deureka.instance.preferIpAddress=false -Deureka.instance.hostname=payment-service
+      - JAVA_OPTS=-Deureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/ -Deureka.instance.preferIpAddress=false -Deureka.instance.hostname=user-service
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/user_db
-      - SPRING_DATASOURCE_USERNAME=
-      - SPRING_DATASOURCE_PASSWORD=
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
       - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
@@ -110,10 +111,10 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - JAVA_OPTS=-Deureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/ -Deureka.instance.preferIpAddress=false -Deureka.instance.hostname=payment-service
+      - JAVA_OPTS=-Deureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/ -Deureka.instance.preferIpAddress=false -Deureka.instance.hostname=product-service
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/product_db
-      - SPRING_DATASOURCE_USERNAME=
-      - SPRING_DATASOURCE_PASSWORD=
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
       - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
@@ -136,10 +137,10 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - JAVA_OPTS=-Deureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/ -Deureka.instance.preferIpAddress=false -Deureka.instance.hostname=payment-service
+      - JAVA_OPTS=-Deureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/ -Deureka.instance.preferIpAddress=false -Deureka.instance.hostname=cart-service
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/cart_db
-      - SPRING_DATASOURCE_USERNAME=
-      - SPRING_DATASOURCE_PASSWORD=
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
       - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
@@ -162,10 +163,10 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - JAVA_OPTS=-Deureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/ -Deureka.instance.preferIpAddress=false -Deureka.instance.hostname=payment-service
+      - JAVA_OPTS=-Deureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/ -Deureka.instance.preferIpAddress=false -Deureka.instance.hostname=order-service
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/order_db
-      - SPRING_DATASOURCE_USERNAME=
-      - SPRING_DATASOURCE_PASSWORD=
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
       - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
@@ -190,8 +191,8 @@ services:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - JAVA_OPTS=-Deureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/ -Deureka.instance.preferIpAddress=false -Deureka.instance.hostname=payment-service
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/payment_db
-      - SPRING_DATASOURCE_USERNAME=
-      - SPRING_DATASOURCE_PASSWORD=
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
       - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
@@ -214,10 +215,10 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - JAVA_OPTS=-Deureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/ -Deureka.instance.preferIpAddress=false -Deureka.instance.hostname=payment-service
+      - JAVA_OPTS=-Deureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/ -Deureka.instance.preferIpAddress=false -Deureka.instance.hostname=shipping-service
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/shipping_db
-      - SPRING_DATASOURCE_USERNAME=
-      - SPRING_DATASOURCE_PASSWORD=
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
       - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
@@ -237,7 +238,7 @@ networks:
     attachable: true
     ipam:
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: 172.21.0.0/16
 
 volumes:
   postgres-data:

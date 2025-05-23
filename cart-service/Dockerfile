@@ -8,7 +8,7 @@ COPY target/cart-service-0.0.1-SNAPSHOT.jar /app/cart-service-0.0.1-SNAPSHOT.jar
 RUN chmod 777 /app/cart-service-0.0.1-SNAPSHOT.jar
 
 # Default environment variables - will be overridden by docker-compose
-ENV SPRING_PROFILES_ACTIVE=dev
+ENV SPRING_PROFILES_ACTIVE=docker
 
 # Set JVM options for memory and garbage collection
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"

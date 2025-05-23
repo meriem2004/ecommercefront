@@ -33,13 +33,14 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
-                        .requestMatchers("/api/products").permitAll()
-                        .requestMatchers("/api/products/{id}").permitAll()
-                        .requestMatchers("/api/products/category/{categoryId}").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         
+                        // Customer endpoints
+                        .requestMatchers("/api/orders/my-orders").hasRole("CUSTOMER")
+                        .requestMatchers("/api/orders/{id}").hasAnyRole("CUSTOMER", "ADMIN")
+                        
                         // Admin only endpoints
-                        .requestMatchers("/api/products/**").hasRole("ADMIN")
+                        .requestMatchers("/api/orders/**").hasRole("ADMIN")
                         
                         // Default security
                         .anyRequest().authenticated()
@@ -48,4 +49,4 @@ public class SecurityConfig {
 
         return http.build();
     }
-}
+} 
