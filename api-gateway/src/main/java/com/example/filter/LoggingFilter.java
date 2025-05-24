@@ -7,78 +7,74 @@ import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.UUID;
 
 @Component
 public class LoggingFilter implements GlobalFilter, Ordered {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(LoggingFilter.class);
+    private static final Logger logger = LoggerFactory.getLogger(LoggingFilter.class);
+    private static final String CORRELATION_ID = "X-Correlation-Id";
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
-        String path = request.getURI().getPath();
-        String method = request.getMethod().toString();
-        String headers = formatHeaders(request.getHeaders());
-        String query = request.getURI().getQuery() != null ? request.getURI().getQuery() : "";
+        
+        // Generate or use existing correlation ID
+        String correlationIdHeader = request.getHeaders().getFirst(CORRELATION_ID);
+        final String correlationId = (correlationIdHeader == null || correlationIdHeader.isEmpty())
+                ? UUID.randomUUID().toString()
+                : correlationIdHeader;
 
-        LOGGER.info("Incoming Request: {} {} Query: {} Headers: {}", 
-                method, path, query, headers);
+        // Add correlation ID to request
+        ServerHttpRequest modifiedRequest = request.mutate()
+                .header(CORRELATION_ID, correlationId)
+                .build();
+
+        // Log request details
+        logger.info("Incoming request - ID: {}, Method: {}, Path: {}, Headers: {}",
+                correlationId,
+                request.getMethod(),
+                request.getURI().getPath(),
+                maskSensitiveHeaders(request.getHeaders()));
 
         long startTime = System.currentTimeMillis();
-        
-        return chain.filter(exchange)
-                .then(Mono.fromRunnable(() -> {
+
+        return chain.filter(exchange.mutate().request(modifiedRequest).build())
+                .doFinally(signalType -> {
+                    ServerHttpResponse response = exchange.getResponse();
                     long duration = System.currentTimeMillis() - startTime;
-                    LOGGER.info("Response: {} {} completed in {}ms with status {}",
-                            method,
-                            path,
-                            duration,
-                            exchange.getResponse().getStatusCode());
                     
-                    // Log response headers for debugging
-                    LOGGER.debug("Response Headers: {}", 
-                            formatHeaders(exchange.getResponse().getHeaders()));
-                }));
+                    logger.info("Outgoing response - ID: {}, Status: {}, Duration: {}ms",
+                            correlationId,
+                            response.getStatusCode(),
+                            duration);
+                });
     }
 
-    private String formatHeaders(HttpHeaders headers) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("{");
-        headers.forEach((key, values) -> {
-            sb.append(key).append(": ");
-            if (key.equalsIgnoreCase("authorization")) {
-                // Mask sensitive info but show token type for debugging
-                List<String> authHeaders = headers.get(key);
-                if (authHeaders != null && !authHeaders.isEmpty()) {
-                    String auth = authHeaders.get(0);
-                    if (auth.startsWith("Bearer ")) {
-                        sb.append("Bearer ***");
-                    } else {
-                        sb.append("*****");
-                    }
-                } else {
-                    sb.append("*****");
-                }
+    private String maskSensitiveHeaders(HttpHeaders headers) {
+        StringBuilder sb = new StringBuilder("{");
+        headers.forEach((name, values) -> {
+            sb.append(name).append(": ");
+            if (name.equalsIgnoreCase(HttpHeaders.AUTHORIZATION)) {
+                sb.append(values.stream().map(v -> v.startsWith("Bearer ") ? "Bearer ***" : "***")
+                        .findFirst().orElse(""));
             } else {
                 sb.append(String.join(", ", values));
             }
-            sb.append(", ");
+            sb.append("; ");
         });
-        if (sb.length() > 1) {
-            sb.setLength(sb.length() - 2);
-        }
         sb.append("}");
         return sb.toString();
     }
 
     @Override
     public int getOrder() {
-        // Execute this filter before other filters
-        return Ordered.HIGHEST_PRECEDENCE;
+        return Ordered.HIGHEST_PRECEDENCE + 1;
     }
 }

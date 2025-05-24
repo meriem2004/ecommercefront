@@ -18,14 +18,18 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/auth")
-// REMOVE @CrossOrigin annotation - API Gateway handles CORS
 public class AuthController {
+    
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -45,28 +49,43 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest loginRequest) {
         try {
+            logger.info("Login attempt for email: {}", loginRequest.getEmail());
+            
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
             );
 
             final UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequest.getEmail());
-            final String token = jwtTokenUtil.generateToken(userDetails);
-            final String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
             
             // Get user details to include in response
             UserDTO userDTO = userService.getUserByEmail(loginRequest.getEmail())
                     .orElseThrow(() -> new Exception("User not found"));
 
+            // Extract roles from UserDetails
+            List<String> roles = userDetails.getAuthorities().stream()
+                    .map(authority -> authority.getAuthority())
+                    .collect(Collectors.toList());
+
+            logger.info("Generating token for user: {} with ID: {} and roles: {}", 
+                       loginRequest.getEmail(), userDTO.getId(), roles);
+
+            // IMPORTANT: Use the enhanced method with userId and roles
+            final String token = jwtTokenUtil.generateToken(userDetails, userDTO.getId(), roles);
+            final String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
+            
+            logger.info("Login successful for user: {} with ID: {}", loginRequest.getEmail(), userDTO.getId());
+
             return ResponseEntity.ok(new JwtResponse(token, refreshToken, userDTO));
         } catch (DisabledException e) {
+            logger.warn("Login failed - account disabled for: {}", loginRequest.getEmail());
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("message", "Account is disabled"));
         } catch (BadCredentialsException e) {
+            logger.warn("Login failed - bad credentials for: {}", loginRequest.getEmail());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "Invalid email or password"));
         } catch (Exception e) {
-            // Log the exception here
-            e.printStackTrace();
+            logger.error("Login failed for: {} - Error: {}", loginRequest.getEmail(), e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Authentication failed: " + e.getMessage()));
         }
@@ -75,19 +94,32 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody UserDTO userDTO) {
         try {
+            logger.info("Registration attempt for email: {}", userDTO.getEmail());
+            
             // First, create the user
             UserDTO registeredUser = userService.createUser(userDTO);
             
             // Then, generate tokens just like in the login endpoint
             final UserDetails userDetails = userDetailsService.loadUserByUsername(registeredUser.getEmail());
-            final String token = jwtTokenUtil.generateToken(userDetails);
+            
+            // Extract roles from UserDetails
+            List<String> roles = userDetails.getAuthorities().stream()
+                    .map(authority -> authority.getAuthority())
+                    .collect(Collectors.toList());
+
+            logger.info("Generating token for new user: {} with ID: {} and roles: {}", 
+                       registeredUser.getEmail(), registeredUser.getId(), roles);
+
+            // IMPORTANT: Use the enhanced method with userId and roles
+            final String token = jwtTokenUtil.generateToken(userDetails, registeredUser.getId(), roles);
             final String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
+            
+            logger.info("Registration successful for user: {} with ID: {}", registeredUser.getEmail(), registeredUser.getId());
             
             // Return response with tokens and user info
             return ResponseEntity.ok(new JwtResponse(token, refreshToken, registeredUser));
         } catch (Exception e) {
-            // Log the exception
-            e.printStackTrace();
+            logger.error("Registration failed for: {} - Error: {}", userDTO.getEmail(), e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Registration failed: " + e.getMessage()));
         }
@@ -108,7 +140,18 @@ public class AuthController {
 
                 // Validate refresh token
                 if (jwtTokenUtil.validateToken(request.getRefreshToken(), userDetails)) {
-                    final String newToken = jwtTokenUtil.generateToken(userDetails);
+                    
+                    // Extract roles from UserDetails
+                    List<String> roles = userDetails.getAuthorities().stream()
+                            .map(authority -> authority.getAuthority())
+                            .collect(Collectors.toList());
+
+                    logger.info("Refreshing token for user: {} with ID: {} and roles: {}", 
+                               username, userDTO.getId(), roles);
+
+                    // IMPORTANT: Use the enhanced method with userId and roles
+                    final String newToken = jwtTokenUtil.generateToken(userDetails, userDTO.getId(), roles);
+                    
                     return ResponseEntity.ok(new JwtResponse(newToken, request.getRefreshToken(), userDTO));
                 }
             }
@@ -116,8 +159,7 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("message", "Invalid refresh token"));
         } catch (Exception e) {
-            // Log the exception
-            e.printStackTrace();
+            logger.error("Token refresh failed - Error: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Token refresh failed: " + e.getMessage()));
         }

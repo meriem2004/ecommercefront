@@ -19,8 +19,10 @@ import java.util.List;
 public class SimpleCorsConfig implements GlobalFilter, Ordered {
 
     private static final List<String> ALLOWED_ORIGINS = Arrays.asList(
-        "http://localhost:5173",
-        "http://127.0.0.1:5173"
+        "http://localhost:5173",  // Vite dev server
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",  // In case you use React's default port
+        "http://127.0.0.1:3000"
     );
 
     @Override
@@ -31,16 +33,18 @@ public class SimpleCorsConfig implements GlobalFilter, Ordered {
 
         String origin = request.getHeaders().getOrigin();
         
-        // Only set CORS headers if they haven't been set already
-        if (!headers.containsKey(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN)) {
-            if (origin != null && (ALLOWED_ORIGINS.contains(origin) || origin.startsWith("http://localhost:"))) {
-                headers.add(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, origin);
-                headers.add(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, PUT, DELETE, OPTIONS, PATCH");
-                headers.add(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, "Authorization, Content-Type, X-Requested-With, Accept, X-User-Email, X-User-Roles");
-                headers.add(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "Authorization, X-User-Email, X-User-Id");
-                headers.add(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-                headers.add(HttpHeaders.ACCESS_CONTROL_MAX_AGE, "3600");
-            }
+        // Set CORS headers for all responses, regardless of whether they've been set already
+        // This ensures they're applied consistently
+        if (origin != null && (ALLOWED_ORIGINS.contains(origin) || origin.startsWith("http://localhost:"))) {
+            headers.set(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, origin);
+            headers.set(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, PUT, DELETE, OPTIONS, PATCH");
+            headers.set(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, "Authorization, Content-Type, X-Requested-With, Accept, X-User-Email, X-User-Roles");
+            headers.set(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "Authorization, X-User-Email, X-User-Id");
+            headers.set(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+            headers.set(HttpHeaders.ACCESS_CONTROL_MAX_AGE, "3600");
+            
+            // IMPORTANT: Remove WWW-Authenticate header for all responses
+            headers.remove(HttpHeaders.WWW_AUTHENTICATE);
         }
 
         // Handle preflight requests
@@ -54,7 +58,7 @@ public class SimpleCorsConfig implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        // Ensure this runs first to avoid duplicate headers
+        // Ensure this runs first to set the headers correctly
         return Ordered.HIGHEST_PRECEDENCE;
     }
 }

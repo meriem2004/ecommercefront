@@ -1,6 +1,5 @@
 package com.example.config;
 
-
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -14,6 +13,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.List;
 
 @Component
 public class JwtTokenUtil {
@@ -57,8 +58,25 @@ public class JwtTokenUtil {
         return extractExpiration(token).before(new Date());
     }
 
+    // NOUVELLE MÉTHODE : Enhanced token generation with userId and roles
+    public String generateToken(UserDetails userDetails, Long userId, java.util.Collection<String> roles) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId.toString());
+        claims.put("roles", roles);
+        claims.put("email", userDetails.getUsername()); // Explicitly add email
+        return createToken(claims, userDetails.getUsername(), jwtExpiration);
+    }
+
+    // MÉTHODE MODIFIÉE : Backward compatibility method with roles
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
+        // Extract roles from UserDetails
+        List<String> roles = userDetails.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .collect(Collectors.toList());
+        claims.put("roles", roles);
+        claims.put("email", userDetails.getUsername());
+        // NOTE: userId will be missing here - prefer the enhanced method above
         return createToken(claims, userDetails.getUsername(), jwtExpiration);
     }
 

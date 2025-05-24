@@ -2,12 +2,16 @@ package com.example.config;
 
 import com.example.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 
+@Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
@@ -25,22 +29,22 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
                         .requestMatchers(
-                                "/api/carts",
-                                "/api/carts/{userId}",
-                                "/api/carts/{userId}/items",
-                                "/api/carts/{userId}/items/{itemId}",
-                                "/api/carts/{userId}/checkout"
+                                "/api/carts/debug-auth"
                         ).permitAll()
-
-                        // Admin only endpoints
+                        
+                        // Authenticated endpoints
                         .requestMatchers(
-                                "/api/products/*/stock",
-                                "/api/products/**/delete"
-                        ).hasRole("ADMIN")
-
-                        // All other requests
-                        .anyRequest().hasAnyRole("ADMIN", "CUSTOMER")
+                                "/api/carts/**",
+                                "/api/carts/current",
+                                "/api/carts/current/items",
+                                "/api/carts/current/items/**"
+                        ).authenticated()
                 )
+                // Add this to prevent the basic auth popup
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                // Disable HTTP Basic Auth completely
+                .httpBasic(httpBasic -> httpBasic.disable())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

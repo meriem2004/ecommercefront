@@ -3,13 +3,21 @@ package com.example.controller;
 import com.example.model.Product;
 import com.example.service.CategoryService;
 import com.example.service.ProductService;
+
+import jakarta.servlet.http.HttpServletRequest;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/products")
@@ -78,4 +86,23 @@ public class ProductController {
         }
         return ResponseEntity.badRequest().build();
     }
+    @GetMapping("/debug")
+public ResponseEntity<Map<String, Object>> debugRequest(HttpServletRequest request) {
+    Map<String, Object> debugInfo = new HashMap<>();
+    
+    // Headers
+    Enumeration<String> headerNames = request.getHeaderNames();
+    Map<String, String> headers = new HashMap<>();
+    while (headerNames.hasMoreElements()) {
+        String name = headerNames.nextElement();
+        headers.put(name, request.getHeader(name));
+    }
+    debugInfo.put("headers", headers);
+    
+    // Security context
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    debugInfo.put("authentication", auth != null ? auth.getName() : "null");
+    
+    return ResponseEntity.ok(debugInfo);
+}
 }

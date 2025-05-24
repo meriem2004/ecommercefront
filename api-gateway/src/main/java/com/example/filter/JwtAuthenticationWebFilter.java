@@ -1,4 +1,4 @@
-/*
+
 package com.example.filter;
 
 import io.jsonwebtoken.Claims;
@@ -88,4 +88,3 @@ public class JwtAuthenticationWebFilter implements WebFilter {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }
-*/

@@ -30,51 +30,29 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .cors().and()
+            .csrf().disable()
+            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            .and()
             .authorizeHttpRequests(auth -> auth
-                // Public GET endpoints
-                .requestMatchers(HttpMethod.GET, 
-                    "/api/products", 
-                    "/api/products/**",
-                    "/api/categories",
-                    "/api/categories/**")
-                .permitAll()
+                // Public endpoints
+                .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/debug/**").permitAll()
                 
-                // Allow OPTIONS requests for CORS preflight
-                .requestMatchers(HttpMethod.OPTIONS, "/**")
-                .permitAll()
+                // Authentication endpoints
+                .requestMatchers("/api/auth/**").permitAll()
                 
-                // Secure write operations
-                .requestMatchers(HttpMethod.POST, "/api/products", "/api/categories")
-                .hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/products/**", "/api/categories/**")
-                .hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PATCH, "/api/products/**")
-                .hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/products/**", "/api/categories/**")
-                .hasRole("ADMIN")
+                // Allow OPTIONS requests
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 
-                .anyRequest()
-                .authenticated()
+                // All other requests require authentication
+                .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
-    
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
-        configuration.setExposedHeaders(Arrays.asList("Authorization"));
-        configuration.setAllowCredentials(true);
-        
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
+
+    // Keep your existing corsConfigurationSource() bean
 }

@@ -7,20 +7,31 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
 @Configuration
-public class CorsConfig {
+public class WebConfig {
 
     @Bean
     public CorsFilter corsFilter() {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         
-        // Only allow your frontend URL
+        // Allow all origins listed
         config.addAllowedOrigin("http://localhost:5173");
-        config.setAllowCredentials(true);
-        config.addAllowedHeader("*");
+        config.addAllowedOrigin("http://127.0.0.1:5173");
+        config.addAllowedOrigin("http://localhost:3000");
+        config.addAllowedOrigin("http://127.0.0.1:3000");
+        
+        // Allow all HTTP methods
         config.addAllowedMethod("*");
         
-        source.registerCorsConfiguration("/api/**", config);
+        // Allow all headers
+        config.addAllowedHeader("*");
+        
+        // Allow credentials
+        config.setAllowCredentials(true);
+        
+        // Apply to all paths
+        source.registerCorsConfiguration("/**", config);
+        
         return new CorsFilter(source);
     }
 }
