@@ -1,0 +1,3 @@
+[submodule "ecommercefront"]
+	path = ecommercefront
+	url = https://github.com/meriem2004/ecommercefront.git
