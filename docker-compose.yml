@@ -1,6 +1,3 @@
-
-
-
 networks:
   microservices-network:
     driver: bridge
@@ -55,6 +52,13 @@ services:
       - SERVER_PORT=8761
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC
       - SPRING_CLOUD_CONFIG_ENABLED=false
+      # Observability
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus
+      - MANAGEMENT_ENDPOINT_METRICS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=always
+      - MANAGEMENT_SECURITY_ENABLED=false
     networks:
       - microservices-network
     profiles: ["infra", "all"]
@@ -91,6 +95,13 @@ services:
       - EUREKA_CLIENT_REGISTER_WITH_EUREKA=true
       - EUREKA_CLIENT_FETCH_REGISTRY=true
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC
+      # Observability
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus
+      - MANAGEMENT_ENDPOINT_METRICS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=always
+      - MANAGEMENT_SECURITY_ENABLED=false
     networks:
       - microservices-network
     profiles: ["infra", "all"]
@@ -112,6 +123,7 @@ services:
       - ./config-repo:/config-repo
 
   api-gateway:
+    image: meriemabboud/api-gateway
     build:
       context: ./api-gateway
       dockerfile: Dockerfile
@@ -135,6 +147,16 @@ services:
       - SERVER_PORT=8080
       - EUREKA_INSTANCE_INSTANCE_ID=api-gateway:8080
       - JAVA_OPTS=-Xmx192m -Xms96m -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC
+      # Observability
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus
+      - MANAGEMENT_ENDPOINT_METRICS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=always
+      - MANAGEMENT_SECURITY_ENABLED=false
+      # Tracing
+      - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=1.0
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://host.docker.internal:9411/api/v2/spans
     networks:
       - microservices-network
     profiles: ["infra", "all", "gateway"]
@@ -204,6 +226,16 @@ services:
       - SPRING_APPLICATION_NAME=product-service
       - EUREKA_INSTANCE_INSTANCE_ID=product-service:8081
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC
+      # Observability
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus
+      - MANAGEMENT_ENDPOINT_METRICS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=always
+      - MANAGEMENT_SECURITY_ENABLED=false
+      # Tracing
+      - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=1.0
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://host.docker.internal:9411/api/v2/spans
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
       interval: 30s
@@ -254,6 +286,16 @@ services:
       - SPRING_APPLICATION_NAME=cart-service
       - EUREKA_INSTANCE_INSTANCE_ID=cart-service:8082
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC
+      # Observability
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus
+      - MANAGEMENT_ENDPOINT_METRICS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=always
+      - MANAGEMENT_SECURITY_ENABLED=false
+      # Tracing
+      - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=1.0
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://host.docker.internal:9411/api/v2/spans
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
       interval: 30s
@@ -304,6 +346,16 @@ services:
       - SPRING_APPLICATION_NAME=notification-service
       - EUREKA_INSTANCE_INSTANCE_ID=notification-service:8087
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC
+      # Observability
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus
+      - MANAGEMENT_ENDPOINT_METRICS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=always
+      - MANAGEMENT_SECURITY_ENABLED=false
+      # Tracing
+      - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=1.0
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://host.docker.internal:9411/api/v2/spans
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health"]
       interval: 30s
@@ -354,6 +406,16 @@ services:
       - SPRING_APPLICATION_NAME=order-service
       - EUREKA_INSTANCE_INSTANCE_ID=order-service:8083
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC
+      # Observability
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus
+      - MANAGEMENT_ENDPOINT_METRICS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=always
+      - MANAGEMENT_SECURITY_ENABLED=false
+      # Tracing
+      - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=1.0
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://host.docker.internal:9411/api/v2/spans
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
       interval: 30s
@@ -404,6 +466,16 @@ services:
       - SPRING_APPLICATION_NAME=payment-service
       - EUREKA_INSTANCE_INSTANCE_ID=payment-service:8084
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC
+      # Observability
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus
+      - MANAGEMENT_ENDPOINT_METRICS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=always
+      - MANAGEMENT_SECURITY_ENABLED=false
+      # Tracing
+      - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=1.0
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://host.docker.internal:9411/api/v2/spans
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
       interval: 30s
@@ -454,6 +526,16 @@ services:
       - SPRING_APPLICATION_NAME=shipping-service
       - EUREKA_INSTANCE_INSTANCE_ID=shipping-service:8085
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC
+      # Observability
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus
+      - MANAGEMENT_ENDPOINT_METRICS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=always
+      - MANAGEMENT_SECURITY_ENABLED=false
+      # Tracing
+      - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=1.0
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://host.docker.internal:9411/api/v2/spans
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
       interval: 30s
@@ -462,6 +544,7 @@ services:
       start_period: 90s
 
   user-service:
+    image: meriemabboud/user-service
     build:
       context: ./user-service
       dockerfile: Dockerfile
@@ -504,23 +587,30 @@ services:
       - SPRING_APPLICATION_NAME=user-service
       - EUREKA_INSTANCE_INSTANCE_ID=user-service:8086
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC
+      # Observability
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus
+      - MANAGEMENT_ENDPOINT_METRICS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
+      - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=always
+      - MANAGEMENT_SECURITY_ENABLED=false
+      # Tracing
+      - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=1.0
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://host.docker.internal:9411/api/v2/spans
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8086/actuator/health"]
       interval: 30s
       timeout: 15s
       retries: 5
       start_period: 90s
-# Add to your docker-compose.yml
-jenkins:
-  image: jenkins/jenkins:lts
-  container_name: jenkins
-  ports:
-    - "8080:8080"
-    - "50000:50000"
-  volumes:
-    - jenkins_data:/var/jenkins_home
-    - /var/run/docker.sock:/var/run/docker.sock
-  environment:
-    - JAVA_OPTS=-Xmx512m
-  networks:
-    - microservices-network
+  # Add this to the end of your services section in docker-compose.yml
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - microservices-network
+    profiles: ["infra", "all"]

@@ -1,0 +1,123 @@
+# payment-service/src/main/resources/application-docker.yml
+spring:
+  application:
+    name: payment-service
+  
+  datasource:
+    url: jdbc:postgresql://postgres:5432/paymentdb
+    username: postgres
+    password: DmRj2003
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+  
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  
+  config:
+    import: optional:configserver:http://config-server:8888
+  
+  cloud:
+    config:
+      enabled: true
+      fail-fast: false
+      retry:
+        initial-interval: 3000
+        max-attempts: 20
+
+server:
+  port: 8084
+
+# Eureka client settings
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://eureka-server:8761/eureka/
+    enabled: true
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: false
+    hostname: payment-service
+    instance-id: payment-service:8084
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+# Actuator and Observability
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        jdbc.connections.active: true
+      percentiles:
+        http.server.requests: 0.5, 0.95, 0.99
+      slo:
+        http.server.requests: 10ms, 50ms, 100ms, 200ms, 500ms
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: http://otel-collector.monitoring.svc.cluster.local:4318/v1/traces
+    metrics:
+      endpoint: http://otel-collector.monitoring.svc.cluster.local:4318/v1/metrics
+
+# OpenTelemetry configuration
+otel:
+  service:
+    name: payment-service
+  exporter:
+    otlp:
+      endpoint: http://otel-collector.monitoring.svc.cluster.local:4318
+      protocol: http/protobuf
+  resource:
+    attributes:
+      service.name: payment-service
+      service.version: 1.0.0
+      deployment.environment: kubernetes
+
+# Logging configuration
+logging:
+  level:
+    io.micrometer: INFO
+    org.springframework.web: INFO
+    org.springframework.jdbc: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+
+# Payment-specific configurations
+payment:
+  stripe:
+    api-key: ${STRIPE_API_KEY:sk_test_}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_}
+  paypal:
+    client-id: ${PAYPAL_CLIENT_ID:}
+    client-secret: ${PAYPAL_CLIENT_SECRET:}
+    environment: ${PAYPAL_ENVIRONMENT:sandbox}
+  retry:
+    max-attempts: 3
+    delay: 1000  # milliseconds

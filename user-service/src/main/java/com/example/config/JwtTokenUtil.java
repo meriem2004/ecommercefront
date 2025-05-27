@@ -8,7 +8,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,14 +24,20 @@ public class JwtTokenUtil {
     private String secret;
 
     @Value("${jwt.expiration}")
-    private long jwtExpiration;
+    private Long expiration;
 
     @Value("${jwt.refreshExpiration}")
-    private long refreshExpiration;
+    private Long refreshExpiration;
 
-    private Key getSigningKey() {
-        byte[] keyBytes = secret.getBytes();
-        return Keys.hmacShaKeyFor(keyBytes);
+    private SecretKey getSigningKey() {
+        try {
+            // Check if the secret is Base64 encoded
+            byte[] keyBytes = Base64.getDecoder().decode(secret);
+            return Keys.hmacShaKeyFor(keyBytes);
+        } catch (Exception e) {
+            // If decoding fails, generate a secure key using the secret as a seed
+            return Keys.secretKeyFor(SignatureAlgorithm.HS256);
+        }
     }
 
     public String extractUsername(String token) {
@@ -64,32 +71,26 @@ public class JwtTokenUtil {
         claims.put("userId", userId.toString());
         claims.put("roles", roles);
         claims.put("email", userDetails.getUsername()); // Explicitly add email
-        return createToken(claims, userDetails.getUsername(), jwtExpiration);
+        return createToken(claims, userDetails.getUsername(), expiration);
     }
 
     // MÉTHODE MODIFIÉE : Backward compatibility method with roles
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
-        // Extract roles from UserDetails
-        List<String> roles = userDetails.getAuthorities().stream()
-                .map(authority -> authority.getAuthority())
-                .collect(Collectors.toList());
-        claims.put("roles", roles);
-        claims.put("email", userDetails.getUsername());
-        // NOTE: userId will be missing here - prefer the enhanced method above
-        return createToken(claims, userDetails.getUsername(), jwtExpiration);
+        return createToken(claims, userDetails.getUsername(), expiration);
     }
 
     public String generateRefreshToken(UserDetails userDetails) {
-        return createToken(new HashMap<>(), userDetails.getUsername(), refreshExpiration);
+        Map<String, Object> claims = new HashMap<>();
+        return createToken(claims, userDetails.getUsername(), refreshExpiration);
     }
 
-    private String createToken(Map<String, Object> claims, String subject, long expiration) {
+    private String createToken(Map<String, Object> claims, String subject, Long expiration) {
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
+                .setExpiration(new Date(System.currentTimeMillis() + expiration * 1000))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }

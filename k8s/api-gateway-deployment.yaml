@@ -54,8 +54,8 @@ spec:
               value: http://config-server:8888
             - name: SPRING_PROFILES_ACTIVE
               value: docker
-          image: ecommerce-microservices-api-gateway:latest  # Changed this line
-          imagePullPolicy: Never  # Add this line to match other services
+          image: meriemabboud/ecommerce-microservices-api-gateway:latest  # Changed this line
+          imagePullPolicy: Always  # Add this line to match other services
           livenessProbe:
             exec:
               command:

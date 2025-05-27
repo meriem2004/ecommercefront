@@ -69,7 +69,7 @@ public class AuthController {
             logger.info("Generating token for user: {} with ID: {} and roles: {}", 
                        loginRequest.getEmail(), userDTO.getId(), roles);
 
-            // IMPORTANT: Use the enhanced method with userId and roles
+            // Generate tokens with user ID and roles
             final String token = jwtTokenUtil.generateToken(userDetails, userDTO.getId(), roles);
             final String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
             
@@ -96,10 +96,10 @@ public class AuthController {
         try {
             logger.info("Registration attempt for email: {}", userDTO.getEmail());
             
-            // First, create the user
+            // Create the user
             UserDTO registeredUser = userService.createUser(userDTO);
             
-            // Then, generate tokens just like in the login endpoint
+            // Generate tokens just like in login
             final UserDetails userDetails = userDetailsService.loadUserByUsername(registeredUser.getEmail());
             
             // Extract roles from UserDetails
@@ -110,13 +110,12 @@ public class AuthController {
             logger.info("Generating token for new user: {} with ID: {} and roles: {}", 
                        registeredUser.getEmail(), registeredUser.getId(), roles);
 
-            // IMPORTANT: Use the enhanced method with userId and roles
+            // Generate tokens with user ID and roles
             final String token = jwtTokenUtil.generateToken(userDetails, registeredUser.getId(), roles);
             final String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
             
             logger.info("Registration successful for user: {} with ID: {}", registeredUser.getEmail(), registeredUser.getId());
             
-            // Return response with tokens and user info
             return ResponseEntity.ok(new JwtResponse(token, refreshToken, registeredUser));
         } catch (Exception e) {
             logger.error("Registration failed for: {} - Error: {}", userDTO.getEmail(), e.getMessage(), e);
@@ -134,7 +133,7 @@ public class AuthController {
             if (username != null) {
                 final UserDetails userDetails = userDetailsService.loadUserByUsername(username);
                 
-                // Get user details to include in response
+                // Get user details
                 UserDTO userDTO = userService.getUserByEmail(username)
                         .orElseThrow(() -> new Exception("User not found"));
 
@@ -149,7 +148,7 @@ public class AuthController {
                     logger.info("Refreshing token for user: {} with ID: {} and roles: {}", 
                                username, userDTO.getId(), roles);
 
-                    // IMPORTANT: Use the enhanced method with userId and roles
+                    // Generate new token with user ID and roles
                     final String newToken = jwtTokenUtil.generateToken(userDetails, userDTO.getId(), roles);
                     
                     return ResponseEntity.ok(new JwtResponse(newToken, request.getRefreshToken(), userDTO));
@@ -165,13 +164,10 @@ public class AuthController {
         }
     }
 
-    @GetMapping("/register")
-    public ResponseEntity<?> getRegistrationInfo() {
-        return ResponseEntity.ok(Map.of(
-            "message", "Registration endpoint is available", 
-            "method", "POST",
-            "requiredFields", List.of("firstName", "lastName", "email", "password")
-        ));
+    @GetMapping("/verify")
+    public ResponseEntity<?> verifyToken() {
+        // This endpoint will be protected by JWT filter
+        return ResponseEntity.ok(Map.of("valid", true));
     }
 
     @GetMapping("/test")

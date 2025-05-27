@@ -7,7 +7,6 @@ import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.core.annotation.Order;
 
 @Configuration
 public class RouteConfig {
@@ -16,63 +15,65 @@ public class RouteConfig {
     private AuthenticationFilter authFilter;
 
     @Bean
-    @Order(-1)
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
         return builder.routes()
-                // OPTIONS requests (CORS preflight) - HIGHEST PRIORITY
-                .route("options-preflight", r -> r
-                        .path("/api/**")
-                        .and()
-                        .method(HttpMethod.OPTIONS)
-                        .uri("lb://cart-service"))
-                
-                // Auth routes (PUBLIC) - NO AUTH FILTER
-                .route("auth-routes", r -> r
+                // Auth routes - NO FILTERS (handled by service itself)
+                 .route("auth-routes", r -> r
                         .path("/api/auth/**")
                         .uri("lb://user-service"))
                 
-                // SPECIFIC CART ROUTES FIRST (more specific paths must come before general ones)
+                // Debug endpoints - all public, NO FILTERS
+                .route("debug-endpoints", r -> r
+                        .path("/api/debug/**")
+                        .uri("lb://product-service"))
                 
-                // Debug endpoint - PUBLIC but with optional auth to set headers
-                .route("cart-debug", r -> r
-                        .path("/api/carts/debug-auth")
-                        .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config(false))))
-                        .uri("lb://cart-service"))
-                
-                // Cart current - Optional auth (will set headers if token present)
-                .route("cart-current", r -> r
-                        .path("/api/carts/current")
+                // Public product routes - NO FILTERS
+                .route("public-products-get", r -> r
+                        .path("/api/products/**")
                         .and()
                         .method(HttpMethod.GET)
-                        .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config(false))))
-                        .uri("lb://cart-service"))
+                        .uri("lb://product-service"))
                 
-                // Cart operations - PROTECTED (auth required)
-                .route("cart-operations", r -> r
-                        .path("/api/carts/current/items/**", "/api/carts/current/items")
+                // Public category routes - NO FILTERS
+                .route("public-categories-get", r -> r
+                        .path("/api/categories/**")
                         .and()
-                        .method(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE, HttpMethod.PATCH)
-                        .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config(true))))
-                        .uri("lb://cart-service"))
+                        .method(HttpMethod.GET)
+                        .uri("lb://product-service"))
                 
-                // General cart routes - Optional auth
-                .route("cart-general", r -> r
-                        .path("/api/carts/**")
-                        .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config(false))))
-                        .uri("lb://cart-service"))
-                
-                // User routes - Auth required
-                .route("user-service", r -> r
+                // Protected routes
+                .route("user-service-protected", r -> r
                         .path("/api/users/**")
-                        .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config(true))))
+                        .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config())))
                         .uri("lb://user-service"))
                 
-                // Gateway debug routes
-                .route("gateway-debug", r -> r
-                        .path("/api/gateway/**")
-                        .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config(false))))
+                // Protected product routes (write operations)
+                .route("product-service-protected", r -> r
+                        .path("/api/products/**")
+                        .and()
+                        .method(HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH, HttpMethod.DELETE)
+                        .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config())))
+                        .uri("lb://product-service"))
+                
+                // Protected category routes (write operations)
+                .route("category-service-protected", r -> r
+                        .path("/api/categories/**")
+                        .and()
+                        .method(HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH, HttpMethod.DELETE)
+                        .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config())))
+                        .uri("lb://product-service"))
+                
+                // Cart service routes
+                .route("cart-service", r -> r
+                        .path("/api/carts/**")
+                        .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config())))
                         .uri("lb://cart-service"))
                 
+                // Order service routes
+                .route("order-service", r -> r
+                        .path("/api/orders/**")
+                        .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config())))
+                        .uri("lb://order-service"))
                 .build();
     }
 }
