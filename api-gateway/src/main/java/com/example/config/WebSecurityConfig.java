@@ -15,7 +15,6 @@ public class WebSecurityConfig {
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         return http
             .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.disable()) // Let SimpleCorsConfig handle all CORS
             .authorizeExchange(exchanges -> exchanges
                 // Allow ALL OPTIONS requests - HIGHEST PRIORITY (before any other rules)
                 .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
