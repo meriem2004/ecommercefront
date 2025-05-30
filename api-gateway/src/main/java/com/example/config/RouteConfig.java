@@ -22,7 +22,7 @@ public class RouteConfig {
                         .method(HttpMethod.OPTIONS)
                         .and()
                         .path("/**")
-                        .uri("lb://product-service"))
+                        .uri("lb://cart-service")) // Route OPTIONS to any service
                 
                 // Auth routes - NO FILTERS
                 .route("auth-routes", r -> r
@@ -44,17 +44,16 @@ public class RouteConfig {
                         .path("/api/categories/**")
                         .uri("lb://product-service"))
                 
+                // ✅ ALL CART ROUTES - NO AUTHENTICATION (TEMPORARILY)
+                .route("all-cart-no-auth", r -> r
+                        .path("/api/carts/**")
+                        .uri("lb://cart-service"))
+                
                 // Protected user routes
                 .route("user-service-protected", r -> r
                         .path("/api/users/**")
                         .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config())))
                         .uri("lb://user-service"))
-                
-                // Cart service routes
-                .route("cart-service", r -> r
-                        .path("/api/carts/**")
-                        .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config())))
-                        .uri("lb://cart-service"))
                 
                 // Order service routes
                 .route("order-service", r -> r

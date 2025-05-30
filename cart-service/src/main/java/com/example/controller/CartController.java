@@ -14,6 +14,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Date;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -192,6 +194,107 @@ public class CartController {
         }
     }
 
+    // ✅ NEW: Update item quantity in cart
+    @PutMapping("/current/items/{productId}")
+    public ResponseEntity<CartResponse> updateItemQuantity(
+            HttpServletRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long productId,
+            @RequestBody Map<String, Integer> requestBody) {
+        
+        logger.info("=== Updating item quantity ===");
+        
+        Integer quantity = requestBody.get("quantity");
+        if (quantity == null || quantity <= 0) {
+            return ResponseEntity.badRequest().body(null);
+        }
+        
+        // Get user ID
+        Long userId = getUserIdFromHeaders(request);
+        if (userId == null && authorization != null) {
+            String tokenEmail = extractEmailFromToken(authorization);
+            if (tokenEmail != null) {
+                userId = getUserIdFromUserService(tokenEmail, authorization);
+            }
+        }
+        if (userId == null) {
+            userId = 1L; // Fallback for testing
+        }
+        
+        logger.info("Updating quantity for userId: {}, productId: {}, quantity: {}", userId, productId, quantity);
+        
+        try {
+            CartResponse cartResponse = cartService.updateItemQuantity(userId, productId, quantity);
+            return ResponseEntity.ok(cartResponse);
+        } catch (Exception e) {
+            logger.error("Error updating item quantity: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    // ✅ NEW: Remove item from cart
+    @DeleteMapping("/current/items/{productId}")
+    public ResponseEntity<CartResponse> removeItemFromCart(
+            HttpServletRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long productId) {
+        
+        logger.info("=== Removing item from cart ===");
+        
+        // Get user ID
+        Long userId = getUserIdFromHeaders(request);
+        if (userId == null && authorization != null) {
+            String tokenEmail = extractEmailFromToken(authorization);
+            if (tokenEmail != null) {
+                userId = getUserIdFromUserService(tokenEmail, authorization);
+            }
+        }
+        if (userId == null) {
+            userId = 1L; // Fallback for testing
+        }
+        
+        logger.info("Removing item for userId: {}, productId: {}", userId, productId);
+        
+        try {
+            CartResponse cartResponse = cartService.removeItemFromCart(userId, productId);
+            return ResponseEntity.ok(cartResponse);
+        } catch (Exception e) {
+            logger.error("Error removing item from cart: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    // ✅ NEW: Clear entire cart
+    @DeleteMapping("/current")
+    public ResponseEntity<CartResponse> clearCart(
+            HttpServletRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        
+        logger.info("=== Clearing entire cart ===");
+        
+        // Get user ID
+        Long userId = getUserIdFromHeaders(request);
+        if (userId == null && authorization != null) {
+            String tokenEmail = extractEmailFromToken(authorization);
+            if (tokenEmail != null) {
+                userId = getUserIdFromUserService(tokenEmail, authorization);
+            }
+        }
+        if (userId == null) {
+            userId = 1L; // Fallback for testing
+        }
+        
+        logger.info("Clearing cart for userId: {}", userId);
+        
+        try {
+            CartResponse cartResponse = cartService.clearCart(userId);
+            return ResponseEntity.ok(cartResponse);
+        } catch (Exception e) {
+            logger.error("Error clearing cart: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
     // Sync cart endpoint
     @PostMapping("/sync")
     public ResponseEntity<CartResponse> syncCart(
@@ -213,7 +316,13 @@ public class CartController {
         
         if (userId != null) {
             logger.info("Using userId from Gateway headers for sync: {}", userId);
-            CartResponse cartResponse = cartService.syncCart(userId, syncRequest.getItems());
+            List<CartSyncItemDto> items = syncRequest.getItems().stream()
+                .map(item -> new CartSyncItemDto(
+                    item.getProductId() != null ? Long.valueOf(item.getProductId()) : null,
+                    item.getQuantity()
+                ))
+                .collect(Collectors.toList());
+            CartResponse cartResponse = cartService.syncCart(userId, items);
             return ResponseEntity.ok(cartResponse);
         }
         
@@ -225,7 +334,13 @@ public class CartController {
             try {
                 Long userIdFromService = getUserIdFromUserService(tokenEmail, authorization);
                 if (userIdFromService != null) {
-                    CartResponse cartResponse = cartService.syncCart(userIdFromService, syncRequest.getItems());
+                    List<CartSyncItemDto> items = syncRequest.getItems().stream()
+                        .map(item -> new CartSyncItemDto(
+                            item.getProductId() != null ? Long.valueOf(item.getProductId()) : null,
+                            item.getQuantity()
+                        ))
+                        .collect(Collectors.toList());
+                    CartResponse cartResponse = cartService.syncCart(userIdFromService, items);
                     return ResponseEntity.ok(cartResponse);
                 }
             } catch (Exception e) {
@@ -236,7 +351,13 @@ public class CartController {
         // If using syncRequest.userId as fallback
         if (syncRequest.getUserId() != null) {
             logger.info("Using userId from sync request: {}", syncRequest.getUserId());
-            CartResponse cartResponse = cartService.syncCart(syncRequest.getUserId(), syncRequest.getItems());
+            List<CartSyncItemDto> items = syncRequest.getItems().stream()
+                .map(item -> new CartSyncItemDto(
+                    item.getProductId() != null ? Long.valueOf(item.getProductId()) : null,
+                    item.getQuantity()
+                ))
+                .collect(Collectors.toList());
+            CartResponse cartResponse = cartService.syncCart(syncRequest.getUserId(), items);
             return ResponseEntity.ok(cartResponse);
         }
         
