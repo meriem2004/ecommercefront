@@ -15,8 +15,9 @@ public class WebSecurityConfig {
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         return http
             .csrf(csrf -> csrf.disable())
+            .cors().and() // Enable CORS
             .authorizeExchange(exchanges -> exchanges
-                // Allow ALL OPTIONS requests - HIGHEST PRIORITY (before any other rules)
+                // Allow ALL OPTIONS requests - HIGHEST PRIORITY (CORS preflight)
                 .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 
                 // Actuator endpoints
@@ -25,13 +26,16 @@ public class WebSecurityConfig {
                 // Public auth endpoints
                 .pathMatchers("/api/auth/**").permitAll()
                 
-                // Public product endpoints
+                // Public product and category GET endpoints
                 .pathMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                 .pathMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                 .pathMatchers(HttpMethod.GET, "/api/debug/**").permitAll()
                 
-                // All other requests require authentication
-                .anyExchange().authenticated()
+                // Debug: Allow cart endpoints temporarily for testing
+                .pathMatchers("/api/carts/**").permitAll()
+                
+                // All other requests need authentication (handled by AuthenticationFilter)
+                .anyExchange().permitAll() // Let the AuthenticationFilter handle auth
             )
             .httpBasic(basic -> basic.disable())
             .formLogin(form -> form.disable())

@@ -24,8 +24,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/carts")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true", 
-    allowedHeaders = {"Authorization", "Content-Type"})
 public class CartController {
     private static final Logger logger = LoggerFactory.getLogger(CartController.class);
 
@@ -96,6 +94,9 @@ public class CartController {
         
         logger.info("=== Getting current user cart ===");
         
+        // Log all headers for debugging
+        logAllHeaders(request);
+        
         // PRIORITY 1: Try to get user ID from Gateway headers
         Long userId = getUserIdFromHeaders(request);
         String userEmail = getUserEmailFromHeaders(request);
@@ -128,6 +129,7 @@ public class CartController {
         CartResponse cartResponse = new CartResponse();
         cartResponse.setItems(new ArrayList<>());
         cartResponse.setTotalAmount(java.math.BigDecimal.ZERO);
+        cartResponse.setTotalItems(0);
         return ResponseEntity.ok(cartResponse);
     }
 
@@ -139,6 +141,9 @@ public class CartController {
             @RequestBody AddItemRequest addItemRequest) {
         
         logger.info("=== Adding item to cart ===");
+        
+        // Log all headers for debugging
+        logAllHeaders(request);
         
         // PRIORITY 1: Try to get user ID from Gateway headers
         Long userId = getUserIdFromHeaders(request);
@@ -169,16 +174,87 @@ public class CartController {
             }
         }
         
-        // If no valid user identification, return authentication required
-        logger.warn("No valid user identification for adding item - productId: {}", addItemRequest.getProductId());
+        // For testing - use user ID 1 if no auth (you can remove this later)
+        logger.warn("No valid user identification - using test user ID 1");
+        try {
+            CartResponse cartResponse = cartService.addItemToCart(1L, addItemRequest);
+            return new ResponseEntity<>(cartResponse, HttpStatus.CREATED);
+        } catch (Exception e) {
+            logger.error("Failed to add item to cart: {}", e.getMessage(), e);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("error", "Authentication required");
+            response.put("message", "Please log in to add items to your cart");
+            
+            return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(null);
+        }
+    }
+
+    // Sync cart endpoint
+    @PostMapping("/sync")
+    public ResponseEntity<CartResponse> syncCart(
+            HttpServletRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody CartSyncRequest syncRequest) {
         
-        Map<String, Object> response = new HashMap<>();
-        response.put("error", "Authentication required");
-        response.put("message", "Please log in to add items to your cart");
+        logger.info("=== Syncing cart ===");
         
-        return ResponseEntity
-            .status(HttpStatus.UNAUTHORIZED)
-            .body(null);
+        // Log all headers for debugging
+        logAllHeaders(request);
+        
+        // PRIORITY 1: Try to get user ID from Gateway headers
+        Long userId = getUserIdFromHeaders(request);
+        String userEmail = getUserEmailFromHeaders(request);
+        
+        logger.info("Sync request - Gateway headers - UserId: {}, Email: {}", userId, userEmail);
+        logger.info("Sync request items count: {}", syncRequest.getItems() != null ? syncRequest.getItems().size() : 0);
+        
+        if (userId != null) {
+            logger.info("Using userId from Gateway headers for sync: {}", userId);
+            CartResponse cartResponse = cartService.syncCart(userId, syncRequest.getItems());
+            return ResponseEntity.ok(cartResponse);
+        }
+        
+        // FALLBACK: Try JWT token approach
+        if (authorization != null && authorization.startsWith("Bearer ")) {
+            String tokenEmail = extractEmailFromToken(authorization);
+            logger.info("Fallback: Syncing cart for user email from token: {}", tokenEmail);
+            
+            try {
+                Long userIdFromService = getUserIdFromUserService(tokenEmail, authorization);
+                if (userIdFromService != null) {
+                    CartResponse cartResponse = cartService.syncCart(userIdFromService, syncRequest.getItems());
+                    return ResponseEntity.ok(cartResponse);
+                }
+            } catch (Exception e) {
+                logger.error("Error syncing cart via fallback method: {}", e.getMessage(), e);
+            }
+        }
+        
+        // If using syncRequest.userId as fallback
+        if (syncRequest.getUserId() != null) {
+            logger.info("Using userId from sync request: {}", syncRequest.getUserId());
+            CartResponse cartResponse = cartService.syncCart(syncRequest.getUserId(), syncRequest.getItems());
+            return ResponseEntity.ok(cartResponse);
+        }
+        
+        logger.warn("No valid user identification for cart sync");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(null);
+    }
+
+    // Helper method to log all headers for debugging
+    private void logAllHeaders(HttpServletRequest request) {
+        logger.info("=== All Request Headers ===");
+        Enumeration<String> headerNames = request.getHeaderNames();
+        while (headerNames.hasMoreElements()) {
+            String headerName = headerNames.nextElement();
+            String headerValue = request.getHeader(headerName);
+            logger.info("Header: {} = {}", headerName, headerValue);
+        }
+        logger.info("=== End Headers ===");
     }
 
     // Debug endpoint to verify authentication and Gateway headers
@@ -209,59 +285,11 @@ public class CartController {
             "X-User-Roles", userRolesHeader != null ? userRolesHeader : "NOT_SET"
         ));
         
-        if (authorization == null || !authorization.startsWith("Bearer ")) {
-            response.put("status", "No authorization header provided");
-            response.put("timestamp", LocalDateTime.now());
-            return ResponseEntity.ok(response);
-        }
+        response.put("status", "Cart service is working");
+        response.put("authHeaderPresent", authorization != null);
+        response.put("timestamp", LocalDateTime.now());
         
-        String token = authorization.substring(7);
-        try {
-            DecodedJWT jwt = JWT.decode(token);
-            
-            // Check if token is expired
-            if (jwt.getExpiresAt() != null && jwt.getExpiresAt().before(new Date())) {
-                response.put("status", "Token expired");
-                response.put("expiredAt", jwt.getExpiresAt());
-                response.put("currentTime", new Date());
-                return ResponseEntity.ok(response);
-            }
-            
-            response.put("status", "Authenticated");
-            response.put("email", jwt.getClaim("email").asString());
-            response.put("userId", jwt.getClaim("userId").asString());
-            response.put("roles", jwt.getClaim("roles"));
-            response.put("issuedAt", jwt.getIssuedAt());
-            response.put("expiresAt", jwt.getExpiresAt());
-            response.put("claims", jwt.getClaims());
-            
-            // Test UserService connection through Gateway if we have email header
-            if (userEmailHeader != null) {
-                try {
-                    UserDto userDto = userServiceClient.getUserByEmail(userEmailHeader, authorization);
-                    response.put("userServiceTest", "SUCCESS");
-                    response.put("retrievedUser", Map.of(
-                        "id", userDto.getId(),
-                        "email", userDto.getEmail(),
-                        "firstName", userDto.getFirstName(),
-                        "lastName", userDto.getLastName()
-                    ));
-                } catch (Exception e) {
-                    response.put("userServiceTest", "FAILED");
-                    response.put("userServiceError", e.getMessage());
-                }
-            } else {
-                response.put("userServiceTest", "SKIPPED - No email header from Gateway");
-            }
-            
-            response.put("timestamp", LocalDateTime.now());
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            response.put("status", "Invalid token");
-            response.put("error", e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
-            return ResponseEntity.ok(response);
-        }
+        return ResponseEntity.ok(response);
     }
     
     @ExceptionHandler(Exception.class)

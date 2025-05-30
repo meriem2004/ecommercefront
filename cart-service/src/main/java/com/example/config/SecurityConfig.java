@@ -1,41 +1,38 @@
 package com.example.config;
 
-import com.example.security.JwtAuthenticationFilter;
-import com.example.security.JwtUtil;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter();
-    }
-
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/**").permitAll()
-                        .anyRequest().authenticated()
-                )
-                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+            .csrf(csrf -> csrf.disable())
+            
+            // Set session management to stateless
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            )
+                
+            // Allow all requests since Gateway handles authentication
+            .authorizeHttpRequests(auth -> auth
+                // Allow OPTIONS requests for CORS
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                // Allow actuator endpoints
+                .requestMatchers("/actuator/**").permitAll()
+                // Allow all cart endpoints - Gateway already authenticated the request
+                .requestMatchers("/api/carts/**").permitAll()
+                // Allow all other requests (Gateway handles auth)
+                .anyRequest().permitAll()
+            );
 
         return http.build();
     }

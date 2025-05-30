@@ -17,8 +17,15 @@ public class RouteConfig {
     @Bean
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
         return builder.routes()
+                // CORS preflight - HIGHEST PRIORITY
+                .route("cors-preflight", r -> r
+                        .method(HttpMethod.OPTIONS)
+                        .and()
+                        .path("/**")
+                        .uri("lb://product-service"))
+                
                 // Auth routes - NO FILTERS (handled by service itself)
-                 .route("auth-routes", r -> r
+                .route("auth-routes", r -> r
                         .path("/api/auth/**")
                         .uri("lb://user-service"))
                 
@@ -27,27 +34,27 @@ public class RouteConfig {
                         .path("/api/debug/**")
                         .uri("lb://product-service"))
                 
-                // Public product routes - NO FILTERS
+                // Public product routes - NO FILTERS (GET only)
                 .route("public-products-get", r -> r
                         .path("/api/products/**")
                         .and()
                         .method(HttpMethod.GET)
                         .uri("lb://product-service"))
                 
-                // Public category routes - NO FILTERS
+                // Public category routes - NO FILTERS (GET only)
                 .route("public-categories-get", r -> r
                         .path("/api/categories/**")
                         .and()
                         .method(HttpMethod.GET)
                         .uri("lb://product-service"))
                 
-                // Protected routes
+                // Protected user routes
                 .route("user-service-protected", r -> r
                         .path("/api/users/**")
                         .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config())))
                         .uri("lb://user-service"))
                 
-                // Protected product routes (write operations)
+                // Protected product routes (write operations) - AUTHENTICATION REQUIRED
                 .route("product-service-protected", r -> r
                         .path("/api/products/**")
                         .and()
