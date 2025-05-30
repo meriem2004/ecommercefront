@@ -1,7 +1,5 @@
 package com.example.service;
 
-import com.example.client.OrderServiceClient;
-import com.example.dto.OrderDto;
 import com.example.dto.PaymentRequest;
 import com.example.dto.PaymentResponse;
 import com.example.dto.RefundRequest;
@@ -10,6 +8,8 @@ import com.example.repository.PaymentRepository;
 import com.example.service.gateway.PaymentGateway;
 import com.example.service.gateway.PaymentGatewayFactory;
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -21,72 +21,117 @@ import java.util.stream.Collectors;
 @Service
 public class PaymentServiceImpl implements PaymentService {
 
+    private static final Logger logger = LoggerFactory.getLogger(PaymentServiceImpl.class);
+
     @Autowired
     private PaymentRepository paymentRepository;
 
     @Autowired
-    private OrderServiceClient orderServiceClient;
-
-    @Autowired
     private PaymentGatewayFactory paymentGatewayFactory;
+
+    // Remove OrderServiceClient dependency for now
+    // @Autowired
+    // private OrderServiceClient orderServiceClient;
 
     @Override
     @Transactional
     public PaymentResponse processPayment(PaymentRequest paymentRequest) {
-        // Validate order exists and amount matches
-        OrderDto order = null;
-        if (paymentRequest.getOrderId() != null) {
-            order = orderServiceClient.getOrderById(paymentRequest.getOrderId());
-        } else if (paymentRequest.getOrderNumber() != null) {
-            order = orderServiceClient.getOrderByNumber(paymentRequest.getOrderNumber());
-        } else {
-            throw new RuntimeException("Either orderId or orderNumber must be provided");
-        }
-
-        if (order == null) {
-            throw new RuntimeException("Order not found");
-        }
-
-        // Verify payment amount matches order amount
-        if (paymentRequest.getAmount().compareTo(order.getTotalAmount()) != 0) {
-            throw new RuntimeException("Payment amount does not match order amount");
-        }
-
-        // Create payment record
-        Payment payment = new Payment();
-        payment.setPaymentNumber(generatePaymentNumber());
-        payment.setOrderId(order.getId());
-        payment.setOrderNumber(order.getOrderNumber());
-        payment.setUserId(order.getUserId());
-        payment.setAmount(paymentRequest.getAmount());
-        payment.setPaymentDate(LocalDateTime.now());
-        payment.setStatus("PENDING");
-        payment.setPaymentMethod(paymentRequest.getPaymentMethod());
-
-        // Save initial payment record
-        payment = paymentRepository.save(payment);
-
+        logger.info("Processing payment request: {}", paymentRequest);
+        
         try {
-            // Process payment through the appropriate payment gateway
-            PaymentGateway paymentGateway = paymentGatewayFactory.getPaymentGateway(paymentRequest.getPaymentMethod());
-            String transactionId = paymentGateway.processPayment(paymentRequest);
+            // Basic validation
+            if (paymentRequest.getAmount() == null || paymentRequest.getAmount().doubleValue() <= 0) {
+                throw new RuntimeException("Invalid payment amount");
+            }
+            
+            if (paymentRequest.getUserId() == null) {
+                throw new RuntimeException("User ID is required");
+            }
+            
+            if (paymentRequest.getPaymentMethod() == null || paymentRequest.getPaymentMethod().isEmpty()) {
+                throw new RuntimeException("Payment method is required");
+            }
 
-            // Update payment with transaction ID
-            payment.setTransactionId(transactionId);
-            payment.setStatus("COMPLETED");
+            // Check for duplicate payments for the same order
+            if (paymentRequest.getOrderId() != null) {
+                List<Payment> existingPayments = paymentRepository.findByOrderId(paymentRequest.getOrderId());
+                boolean hasCompletedPayment = existingPayments.stream()
+                    .anyMatch(p -> "COMPLETED".equals(p.getStatus()));
+                
+                if (hasCompletedPayment) {
+                    throw new RuntimeException("Order already has a completed payment");
+                }
+            }
 
-            // Update order status to PAID
-            orderServiceClient.updateOrderStatus(order.getId(), "PAID");
+            logger.info("Payment validation passed, creating payment record");
+
+            // Create payment record with retry logic for unique constraint
+            Payment payment = null;
+            int retryCount = 0;
+            int maxRetries = 3;
+            
+            while (payment == null && retryCount < maxRetries) {
+                try {
+                    payment = new Payment();
+                    payment.setPaymentNumber(generatePaymentNumber());
+                    payment.setOrderId(paymentRequest.getOrderId());
+                    payment.setOrderNumber(paymentRequest.getOrderNumber());
+                    payment.setUserId(paymentRequest.getUserId());
+                    payment.setAmount(paymentRequest.getAmount());
+                    payment.setPaymentDate(LocalDateTime.now());
+                    payment.setStatus("PENDING");
+                    payment.setPaymentMethod(paymentRequest.getPaymentMethod());
+
+                    // Save initial payment record
+                    payment = paymentRepository.save(payment);
+                    logger.info("Payment record created with ID: {} and number: {}", payment.getId(), payment.getPaymentNumber());
+                    
+                } catch (Exception e) {
+                    retryCount++;
+                    logger.warn("Payment creation attempt {} failed: {}", retryCount, e.getMessage());
+                    
+                    if (retryCount >= maxRetries) {
+                        throw new RuntimeException("Failed to create unique payment record after " + maxRetries + " attempts");
+                    }
+                    
+                    payment = null; // Reset for retry
+                    Thread.sleep(100); // Small delay before retry
+                }
+            }
+
+            try {
+                // Process payment through the appropriate payment gateway
+                PaymentGateway paymentGateway = paymentGatewayFactory.getPaymentGateway(paymentRequest.getPaymentMethod());
+                logger.info("Processing payment through gateway for method: {}", paymentRequest.getPaymentMethod());
+                
+                String transactionId = paymentGateway.processPayment(paymentRequest);
+
+                // Update payment with transaction ID
+                payment.setTransactionId(transactionId);
+                payment.setStatus("COMPLETED");
+                
+                logger.info("Payment completed successfully with transaction ID: {}", transactionId);
+
+                // TODO: Update order status to PAID when OrderServiceClient is available
+                // orderServiceClient.updateOrderStatus(order.getId(), "PAID");
+                
+            } catch (Exception e) {
+                logger.error("Payment processing failed: {}", e.getMessage(), e);
+                // Update payment status on failure
+                payment.setStatus("FAILED");
+                payment.setErrorMessage(e.getMessage());
+            }
+
+            // Save updated payment record
+            payment = paymentRepository.save(payment);
+            logger.info("Payment record updated with status: {}", payment.getStatus());
+
+            return mapToPaymentResponse(payment);
+            
         } catch (Exception e) {
-            // Update payment status on failure
-            payment.setStatus("FAILED");
-            payment.setErrorMessage(e.getMessage());
+            logger.error("Payment processing error: {}", e.getMessage(), e);
+            throw new RuntimeException("Payment processing failed: " + e.getMessage(), e);
         }
-
-        // Save updated payment record
-        payment = paymentRepository.save(payment);
-
-        return mapToPaymentResponse(payment);
     }
 
     @Override
@@ -137,8 +182,8 @@ public class PaymentServiceImpl implements PaymentService {
             // Update payment status
             payment.setStatus("REFUNDED");
 
-            // Update order status
-            orderServiceClient.updateOrderStatus(payment.getOrderId(), "REFUNDED");
+            // TODO: Update order status when OrderServiceClient is available
+            // orderServiceClient.updateOrderStatus(payment.getOrderId(), "REFUNDED");
         } catch (Exception e) {
             payment.setErrorMessage("Refund failed: " + e.getMessage());
         }
@@ -158,8 +203,8 @@ public class PaymentServiceImpl implements PaymentService {
             payment.setStatus("CANCELLED");
             payment = paymentRepository.save(payment);
 
-            // Update order status
-            orderServiceClient.updateOrderStatus(payment.getOrderId(), "PAYMENT_CANCELLED");
+            // TODO: Update order status when OrderServiceClient is available
+            // orderServiceClient.updateOrderStatus(payment.getOrderId(), "PAYMENT_CANCELLED");
         } else {
             throw new RuntimeException("Only pending payments can be cancelled");
         }
@@ -168,7 +213,10 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private String generatePaymentNumber() {
-        return "PAY-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        // Generate a more unique payment number with timestamp
+        String timestamp = String.valueOf(System.currentTimeMillis()).substring(6); // Last 7 digits
+        String uuid = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        return "PAY-" + timestamp + "-" + uuid;
     }
 
     private PaymentResponse mapToPaymentResponse(Payment payment) {

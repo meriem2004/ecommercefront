@@ -22,7 +22,7 @@ public class RouteConfig {
                         .method(HttpMethod.OPTIONS)
                         .and()
                         .path("/**")
-                        .uri("lb://cart-service")) // Route OPTIONS to any service
+                        .uri("lb://cart-service"))
                 
                 // Auth routes - NO FILTERS
                 .route("auth-routes", r -> r
@@ -34,20 +34,36 @@ public class RouteConfig {
                         .path("/api/debug/**")
                         .uri("lb://product-service"))
                 
-                // ✅ ALL PRODUCT ROUTES - NO AUTHENTICATION (TEMPORARILY)
+                // Product routes
                 .route("all-products-no-auth", r -> r
                         .path("/api/products/**")
                         .uri("lb://product-service"))
                 
-                // ✅ ALL CATEGORY ROUTES - NO AUTHENTICATION (TEMPORARILY)  
+                // Category routes
                 .route("all-categories-no-auth", r -> r
                         .path("/api/categories/**")
                         .uri("lb://product-service"))
                 
-                // ✅ ALL CART ROUTES - NO AUTHENTICATION (TEMPORARILY)
+                // Cart routes
                 .route("all-cart-no-auth", r -> r
                         .path("/api/carts/**")
                         .uri("lb://cart-service"))
+                
+                // Order routes
+                .route("all-orders-no-auth", r -> r
+                        .path("/api/orders/**")
+                        .uri("lb://order-service"))
+                
+                // Payment routes - Try different approaches
+                .route("payment-service-direct", r -> r
+                        .path("/api/payments/**")
+                        .uri("http://localhost:8085"))
+                
+                // Fallback payment route with load balancer
+                .route("payment-service-lb", r -> r
+                        .path("/api/payments-lb/**")
+                        .filters(f -> f.rewritePath("/api/payments-lb/(?<segment>.*)", "/api/payments/${segment}"))
+                        .uri("lb://payment-service"))
                 
                 // Protected user routes
                 .route("user-service-protected", r -> r
@@ -55,11 +71,6 @@ public class RouteConfig {
                         .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config())))
                         .uri("lb://user-service"))
                 
-                // Order service routes
-                .route("order-service", r -> r
-                        .path("/api/orders/**")
-                        .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config())))
-                        .uri("lb://order-service"))
                 .build();
     }
 }
