@@ -24,28 +24,24 @@ public class RouteConfig {
                         .path("/**")
                         .uri("lb://product-service"))
                 
-                // Auth routes - NO FILTERS (handled by service itself)
+                // Auth routes - NO FILTERS
                 .route("auth-routes", r -> r
                         .path("/api/auth/**")
                         .uri("lb://user-service"))
                 
-                // Debug endpoints - all public, NO FILTERS
+                // Debug endpoints - NO FILTERS
                 .route("debug-endpoints", r -> r
                         .path("/api/debug/**")
                         .uri("lb://product-service"))
                 
-                // Public product routes - NO FILTERS (GET only)
-                .route("public-products-get", r -> r
+                // ✅ ALL PRODUCT ROUTES - NO AUTHENTICATION (TEMPORARILY)
+                .route("all-products-no-auth", r -> r
                         .path("/api/products/**")
-                        .and()
-                        .method(HttpMethod.GET)
                         .uri("lb://product-service"))
                 
-                // Public category routes - NO FILTERS (GET only)
-                .route("public-categories-get", r -> r
+                // ✅ ALL CATEGORY ROUTES - NO AUTHENTICATION (TEMPORARILY)  
+                .route("all-categories-no-auth", r -> r
                         .path("/api/categories/**")
-                        .and()
-                        .method(HttpMethod.GET)
                         .uri("lb://product-service"))
                 
                 // Protected user routes
@@ -53,22 +49,6 @@ public class RouteConfig {
                         .path("/api/users/**")
                         .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config())))
                         .uri("lb://user-service"))
-                
-                // Protected product routes (write operations) - AUTHENTICATION REQUIRED
-                .route("product-service-protected", r -> r
-                        .path("/api/products/**")
-                        .and()
-                        .method(HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH, HttpMethod.DELETE)
-                        .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config())))
-                        .uri("lb://product-service"))
-                
-                // Protected category routes (write operations)
-                .route("category-service-protected", r -> r
-                        .path("/api/categories/**")
-                        .and()
-                        .method(HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH, HttpMethod.DELETE)
-                        .filters(f -> f.filter(authFilter.apply(new AuthenticationFilter.Config())))
-                        .uri("lb://product-service"))
                 
                 // Cart service routes
                 .route("cart-service", r -> r

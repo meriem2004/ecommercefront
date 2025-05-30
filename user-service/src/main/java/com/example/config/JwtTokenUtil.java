@@ -9,13 +9,11 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
-import java.util.Base64;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.List;
 
 @Component
 public class JwtTokenUtil {
@@ -29,15 +27,10 @@ public class JwtTokenUtil {
     @Value("${jwt.refreshExpiration}")
     private Long refreshExpiration;
 
+    // ✅ FIXED: Use the same approach as API Gateway
     private SecretKey getSigningKey() {
-        try {
-            // Check if the secret is Base64 encoded
-            byte[] keyBytes = Base64.getDecoder().decode(secret);
-            return Keys.hmacShaKeyFor(keyBytes);
-        } catch (Exception e) {
-            // If decoding fails, generate a secure key using the secret as a seed
-            return Keys.secretKeyFor(SignatureAlgorithm.HS256);
-        }
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String extractUsername(String token) {
@@ -65,16 +58,16 @@ public class JwtTokenUtil {
         return extractExpiration(token).before(new Date());
     }
 
-    // NOUVELLE MÉTHODE : Enhanced token generation with userId and roles
+    // Enhanced token generation with userId and roles
     public String generateToken(UserDetails userDetails, Long userId, java.util.Collection<String> roles) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId.toString());
         claims.put("roles", roles);
-        claims.put("email", userDetails.getUsername()); // Explicitly add email
+        claims.put("email", userDetails.getUsername());
         return createToken(claims, userDetails.getUsername(), expiration);
     }
 
-    // MÉTHODE MODIFIÉE : Backward compatibility method with roles
+    // Backward compatibility method with roles
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         return createToken(claims, userDetails.getUsername(), expiration);
